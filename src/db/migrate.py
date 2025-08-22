@@ -3,8 +3,8 @@ import sqlite3
 
 def migrate_data():
     # CSV 파일 경로와 데이터베이스 경로
-    csv_file_path = 'C:/Users/cafea/pythonbook/DeepLearningICT/food_nutrition/data.csv'
-    db_file_path = 'C:/Users/cafea/pythonbook/DeepLearningICT/food_nutrition/food_nutrition.db'
+    csv_file_path = '../../data.csv'
+    db_file_path = '../../food_nutrition.db'
 
     # 한글 헤더와 영문 컬럼명 매핑
     header_mapping = {
