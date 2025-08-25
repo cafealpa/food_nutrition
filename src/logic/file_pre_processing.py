@@ -15,6 +15,7 @@ import numpy as np
 from typing import List, Dict, Tuple
 import time
 import json
+import random
 
 
 def read_properties(prop_file: str) -> Dict[str, Tuple[int, int, int, int]]:
@@ -125,7 +126,9 @@ def train_files_pre_process(target_dir, dest_dir, count):
                  and f != 'crop_area.properties']
 
         if count > 0:
-            files = files[:count]
+            # Set random seed based on current time
+            random.seed(int(time.time()))
+            files = random.sample(files, min(count, len(files)))
 
         for file in files:
             src_path = os.path.join(dir_path, file)
@@ -172,15 +175,22 @@ def train_files_pre_process(target_dir, dest_dir, count):
 
 if __name__ == '__main__':
     target_dir = "E:\\AIWork\\Data\\한국음식"
-    dest_dir = "E:\\AIWork\\Data\\테스트"
-    count = 20
+    dest_train_dir = "E:\\AIWork\\Data\\테스트\\train"
+    dest_valid_dir = "E:\\AIWork\\Data\\테스트\\valid"
 
-    process_result = train_files_pre_process(target_dir, dest_dir, count)
+    count = 10
+    dest_dirs = [dest_train_dir, dest_valid_dir]
 
-    # Save process_result to JSON file
-    result_file = os.path.join(dest_dir, 'result.json')
-    with open(result_file, 'w', encoding='utf-8') as f:
-        json.dump(process_result, f, ensure_ascii=False, indent=2)
+    for dest_dir in dest_dirs:
+        process_result = train_files_pre_process(target_dir, dest_dir, count)
+
+        # Save process_result to JSON file
+        result_file = os.path.join(dest_dir, 'result.json')
+        with open(result_file, 'w', encoding='utf-8') as f:
+            json.dump(process_result, f, ensure_ascii=False, indent=2)
+
+        print(f"파일 생성 완료: {dest_dir}")
+
 
     print()
     print("종료")
