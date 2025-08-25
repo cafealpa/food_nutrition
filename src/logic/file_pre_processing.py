@@ -183,4 +183,8 @@ if __name__ == '__main__':
         json.dump(process_result, f, ensure_ascii=False, indent=2)
 
     print()
+<<<<<<< HEAD
     print("종료")
+=======
+    print("종료")
+>>>>>>> origin/main
