@@ -1,3 +1,4 @@
+import datetime, json
 from keras import Model
 from keras.src.applications.mobilenet_v2 import MobileNetV2
 from keras.src.layers import Dense
@@ -6,8 +7,8 @@ from tensorflow.keras.layers import GlobalAveragePooling2D
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
-
-train_dir = 'E:\\AIWork\\Data\\테스트\\'
+train_dir = 'E:\\AIWork\\Data\\테스트\\train'
+valid_dir = 'E:\\AIWork\\Data\\테스트\\valid'
 # rabbit_train_dir = './train/rabbit'
 # raccoon_train_dir = './train/raccoon'
 # squirrel_train_dir = './train/squirrel'
@@ -30,7 +31,7 @@ train_generator = train_datagen.flow_from_directory(
 )
 
 validation_generator = train_datagen.flow_from_directory(
-    train_dir,
+    valid_dir,
     target_size=(224, 224),
     batch_size=8,
     class_mode='categorical',
@@ -38,6 +39,11 @@ validation_generator = train_datagen.flow_from_directory(
     shuffle=True
 )
 
+current_time = datetime.datetime.now()
+indices_json_file = f"indices-{current_time}.json"
+
+with open(indices_json_file, "w", encoding='utf-8') as f:
+    json.dump(train_generator.class_indices, f, ensure_ascii=False, indent=4)
 
 # 모델 불러오기 (사전 학습된 가중치 사용. 최사위 레이어 제거)
 base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
@@ -54,16 +60,17 @@ model = Model(inputs=base_model.input, outputs=predictions)
 for layer in base_model.layers:
     layer.trainable = False
 
-earlyStopping = EarlyStopping(monitor="val_loss", patience=10, verbose=1)
-
 model.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
+
+earlyStopping = EarlyStopping(monitor="val_loss", patience=10, verbose=1, restore_best_weights=True)
+modelCheckpoint = ModelCheckpoint(f"./models/cho_korean_food_classifier-{current_time}.keras", monitor="val_loss", verbose=1, save_best_only=True)
 
 model.fit(train_generator,
           epochs=100,
           validation_data=validation_generator,
           steps_per_epoch=train_generator.samples // 8,  # // train_generator.batch_size,
-          validation_steps=validation_generator.samples// 8,  # // validation_generator.batch_size
-          callbacks=[earlyStopping]
+          validation_steps=validation_generator.samples // 8,  # // validation_generator.batch_size
+          callbacks=[earlyStopping, modelCheckpoint]
           )
 
-model.save('korean_food_classifier.keras')
+model.save(f'cho_korean_food_classifier-{current_time}.keras')
