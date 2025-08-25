@@ -126,8 +126,9 @@ def train_files_pre_process(target_dir, dest_dir, count):
                 counter += 1
 
             try:
-                if file in crop_areas:
-                    cropped = crop_image(src_path, crop_areas[file])
+                file_name_only = file.split(".")[0]
+                if file_name_only in crop_areas:
+                    cropped = crop_image(src_path, crop_areas[file_name_only])
                     if cropped is not None:
                         cv2.imwrite(dest_path, cropped)
                         result[file] = folder_type
