@@ -1,0 +1,116 @@
+
+"""
+1. 타겟 폴더의 경로를 입력받고
+2. 타겟 폴더 가장 하위의 폴더들로 접근해서
+3. 인자로 입력받은 갯수 만큼 파일을 읽어
+4. 하위의 폴더들에는 'crop_area.properties'파일이 있는 경우는 프로퍼티 파일을 읽어서 해당파일명이 있으면 프로퍼티에 입력되어 있는 좌표대로 이미지를 크롭한다.
+5. 크롭된 이미지를 인자로 입력된 dest폴더로 복사한다  
+6. 'crop_area.properties'파일이 없으면 dest폴더로 복사한다. 
+"""
+
+import os
+import shutil
+import cv2
+from typing import List, Dict, Tuple
+import time
+
+def read_properties(prop_file: str) -> Dict[str, Tuple[int, int, int, int]]:
+    crop_areas = {}
+    if os.path.exists(prop_file):
+        with open(prop_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                if '=' in line:
+                    name, coords = line.strip().split('=', 1)
+                    coords = coords.split()[0]
+
+                    if coords.startswith(',') or coords.startswith(('dissimilar', 'open')):
+                        split_coords = coords.split(',')
+                        x = 0
+                        y = 0
+                        w = int(split_coords[1])
+                        h = int(split_coords[2])
+                    else:
+                        split_coords = coords.split(',')
+                        x = int(split_coords[0])
+                        y = int(split_coords[1])
+                        w = int(split_coords[2])
+                        h = int(split_coords[3])
+                    crop_areas[name] = (x, y, w, h)
+    return crop_areas
+
+
+def get_lowest_dirs(target_dir: str) -> List[str]:
+    lowest_dirs = []
+    for root, dirs, files in os.walk(target_dir):
+        if not dirs:
+            lowest_dirs.append(root)
+    return lowest_dirs
+
+
+def crop_image(image_path: str, coords: Tuple[int, int, int, int]) -> any:
+    img = cv2.imread(image_path)
+    if img is None:
+        print(f"Error: 이미지 읽기 실패 {image_path}")
+        return None
+    x, y, w, h = coords
+    return img[y:y + h, x:x + w]
+
+
+def train_files_pre_process(target_dir, dest_dir, count):
+    os.makedirs(dest_dir, exist_ok=True)
+    result = {}
+
+    for dir_path in get_lowest_dirs(target_dir):
+        prop_file = os.path.join(dir_path, 'crop_area.properties')
+        crop_areas = read_properties(prop_file)
+        folder_type = os.path.basename(dir_path)
+
+        files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))
+                 and f != 'crop_area.properties']
+
+        if count > 0:
+            files = files[:count]
+
+        for file in files:
+            src_path = os.path.join(dir_path, file)
+            dest_path = os.path.join(dest_dir, file)
+
+            # 파일명이 중복되면 이름 변경
+            base, ext = os.path.splitext(file)
+            counter = 1
+            while os.path.exists(dest_path):
+                dest_path = os.path.join(dest_dir, f"{base}_{counter}{ext}")
+                counter += 1
+
+            try:
+                if file in crop_areas:
+                    cropped = crop_image(src_path, crop_areas[file])
+                    if cropped is not None:
+                        cv2.imwrite(dest_path, cropped)
+                        result[file] = folder_type
+                    else:
+                        print(f"Warning: 이미지 크롭 실패 {src_path}")
+                else:
+                    for attempt in range(3):
+                        try:
+                            shutil.copy2(src_path, dest_path)
+                            result[file] = folder_type
+                            break
+                        except PermissionError as e:
+                            print(f"파일 사용 중, {file} - {e}, 재시도 {attempt + 1}/3")
+                            time.sleep(1)
+                    else:
+                        print(f"복사 실패: {file}")
+            except Exception as e:
+                print(f"처리 중 오류 발생 {file}: {e}")
+
+    return result
+
+
+if __name__ == '__main__':
+    target_dir = "E:\\AIWork\\Data\\한국음식"
+    dest_dir = "E:\\AIWork\\Data\\테스트"
+    count = 10
+
+    print(train_files_pre_process(target_dir, dest_dir, count))
+    print("종료")
