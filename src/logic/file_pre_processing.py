@@ -174,8 +174,8 @@ def train_files_pre_process(target_dir, dest_dir, count):
 
 
 if __name__ == '__main__':
-    target_dir = "E:\\AIWork\\Data\\한국음식"
-    dest_dir = "E:\\AIWork\\Data\\테스트"
+    target_dir = "/Users/james/Desktop/dataset/21_korean/kfood_correct"
+    dest_dir = "/Users/james/Desktop/dataset/21_korean/kfood_correct_model_files"
     count = 20
 
     process_result = train_files_pre_process(target_dir, dest_dir, count)
@@ -186,11 +186,5 @@ if __name__ == '__main__':
         json.dump(process_result, f, ensure_ascii=False, indent=2)
 
     print(f"파일 생성 완료: {dest_dir}")
-
-
-    print()
-<<<<<<< HEAD
+    
     print("종료")
-=======
-    print("종료")
->>>>>>> origin/main
