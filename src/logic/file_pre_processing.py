@@ -180,12 +180,12 @@ if __name__ == '__main__':
 
     process_result = train_files_pre_process(target_dir, dest_dir, count)
 
-        # Save process_result to JSON file
-        result_file = os.path.join(dest_dir, 'result.json')
-        with open(result_file, 'w', encoding='utf-8') as f:
-            json.dump(process_result, f, ensure_ascii=False, indent=2)
+    # Save process_result to JSON file
+    result_file = os.path.join(dest_dir, 'result.json')
+    with open(result_file, 'w', encoding='utf-8') as f:
+        json.dump(process_result, f, ensure_ascii=False, indent=2)
 
-        print(f"파일 생성 완료: {dest_dir}")
+    print(f"파일 생성 완료: {dest_dir}")
 
 
     print()
