@@ -11,8 +11,10 @@
 import os
 import shutil
 import cv2
+import numpy as np
 from typing import List, Dict, Tuple
 import time
+import json
 
 
 def read_properties(prop_file: str) -> Dict[str, Tuple[int, int, int, int]]:
@@ -68,7 +70,7 @@ def get_lowest_dirs(target_dir: str) -> List[str]:
 
 def crop_image(image_path: str, coords: Tuple[int, int, int, int]) -> any:
     """
-    주어진 좌표에 따라 이미지를 자릅니다.
+    주어진 좌표에 따라 이미지를 자릅니다. 한글 경로 문제를 해결하기 위해 numpy로 파일을 읽습니다.
 
     Args:
         image_path (str): 이미지 파일 경로
@@ -77,10 +79,16 @@ def crop_image(image_path: str, coords: Tuple[int, int, int, int]) -> any:
     Returns:
         any: 잘린 이미지 객체 (OpenCV 이미지). 실패 시 None을 반환합니다.
     """
-    img = cv2.imread(image_path)
-    if img is None:
-        print(f"Error: 이미지 읽기 실패 {image_path}")
+    try:
+        with open(image_path, 'rb') as f:
+            img_array = np.frombuffer(f.read(), np.uint8)
+            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        if img is None:
+            raise IOError("Failed to decode image")
+    except Exception as e:
+        print(f"Error: 이미지 읽기 실패 {image_path} - {e}")
         return None
+    
     x, y, w, h = coords
     return img[y:y + h, x:x + w]
 
@@ -91,6 +99,7 @@ def train_files_pre_process(target_dir, dest_dir, count):
 
     'crop_area.properties' 파일이 있는 경우, 해당 파일의 좌표 정보를 이용해 이미지를 자른 후 복사합니다.
     파일이 없으면 원본 이미지를 그대로 복사합니다.
+    한글 경로 문제를 해결하기 위해 cv2.imencode를 사용하여 파일을 저장합니다.
 
     Args:
         target_dir (str): 원본 이미지 파일들이 있는 대상 디렉토리
@@ -126,12 +135,18 @@ def train_files_pre_process(target_dir, dest_dir, count):
                 counter += 1
 
             try:
-                file_name_only = file.split(".")[0]
+                file_name_only = os.path.splitext(file)[0]
                 if file_name_only in crop_areas:
                     cropped = crop_image(src_path, crop_areas[file_name_only])
                     if cropped is not None:
-                        cv2.imwrite(dest_path, cropped)
-                        result[file] = folder_type
+                        extension = os.path.splitext(dest_path)[1]
+                        result_encode, encoded_img = cv2.imencode(extension, cropped)
+                        if result_encode:
+                            with open(dest_path, 'wb') as f:
+                                f.write(encoded_img)
+                            result[file] = folder_type
+                        else:
+                            print(f"Warning: 이미지 인코딩 실패 {src_path}")
                     else:
                         print(f"Warning: 이미지 크롭 실패 {src_path}")
                 else:
@@ -156,5 +171,12 @@ if __name__ == '__main__':
     dest_dir = "E:\\AIWork\\Data\\테스트"
     count = 20
 
-    print(train_files_pre_process(target_dir, dest_dir, count))
+    process_result = train_files_pre_process(target_dir, dest_dir, count)
+
+    # Save process_result to JSON file
+    result_file = os.path.join(dest_dir, 'result.json')
+    with open(result_file, 'w', encoding='utf-8') as f:
+        json.dump(process_result, f, ensure_ascii=False, indent=2)
+
+    print()
     print("종료")
