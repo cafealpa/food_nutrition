@@ -14,7 +14,17 @@ import cv2
 from typing import List, Dict, Tuple
 import time
 
+
 def read_properties(prop_file: str) -> Dict[str, Tuple[int, int, int, int]]:
+    """
+    프로퍼티 파일을 읽어 이미지 파일별 크롭 영역 좌표를 반환합니다.
+
+    Args:
+        prop_file (str): 'crop_area.properties' 파일의 경로
+
+    Returns:
+        Dict[str, Tuple[int, int, int, int]]: 파일명을 키로, (x, y, w, h) 좌표를 값으로 하는 딕셔너리
+    """
     crop_areas = {}
     if os.path.exists(prop_file):
         with open(prop_file, 'r', encoding='utf-8') as f:
@@ -40,6 +50,15 @@ def read_properties(prop_file: str) -> Dict[str, Tuple[int, int, int, int]]:
 
 
 def get_lowest_dirs(target_dir: str) -> List[str]:
+    """
+    주어진 디렉토리의 모든 최하위 디렉토리 목록을 반환합니다.
+
+    Args:
+        target_dir (str): 대상 디렉토리 경로
+
+    Returns:
+        List[str]: 최하위 디렉토리 경로의 리스트
+    """
     lowest_dirs = []
     for root, dirs, files in os.walk(target_dir):
         if not dirs:
@@ -48,6 +67,16 @@ def get_lowest_dirs(target_dir: str) -> List[str]:
 
 
 def crop_image(image_path: str, coords: Tuple[int, int, int, int]) -> any:
+    """
+    주어진 좌표에 따라 이미지를 자릅니다.
+
+    Args:
+        image_path (str): 이미지 파일 경로
+        coords (Tuple[int, int, int, int]): (x, y, 너비, 높이) 형식의 자르기 좌표
+
+    Returns:
+        any: 잘린 이미지 객체 (OpenCV 이미지). 실패 시 None을 반환합니다.
+    """
     img = cv2.imread(image_path)
     if img is None:
         print(f"Error: 이미지 읽기 실패 {image_path}")
@@ -57,6 +86,20 @@ def crop_image(image_path: str, coords: Tuple[int, int, int, int]) -> any:
 
 
 def train_files_pre_process(target_dir, dest_dir, count):
+    """
+    대상 디렉토리의 이미지 파일들을 전처리하여 목적 디렉토리로 복사합니다.
+
+    'crop_area.properties' 파일이 있는 경우, 해당 파일의 좌표 정보를 이용해 이미지를 자른 후 복사합니다.
+    파일이 없으면 원본 이미지를 그대로 복사합니다.
+
+    Args:
+        target_dir (str): 원본 이미지 파일들이 있는 대상 디렉토리
+        dest_dir (str): 전처리된 파일들을 저장할 목적 디렉토리
+        count (int): 각 하위 폴더에서 처리할 파일의 수. 0이면 모든 파일을 처리합니다.
+
+    Returns:
+        dict: 처리된 파일명을 키로, 파일의 유형(폴더명)을 값으로 하는 딕셔너리
+    """
     os.makedirs(dest_dir, exist_ok=True)
     result = {}
 
@@ -110,7 +153,7 @@ def train_files_pre_process(target_dir, dest_dir, count):
 if __name__ == '__main__':
     target_dir = "E:\\AIWork\\Data\\한국음식"
     dest_dir = "E:\\AIWork\\Data\\테스트"
-    count = 10
+    count = 20
 
     print(train_files_pre_process(target_dir, dest_dir, count))
     print("종료")
