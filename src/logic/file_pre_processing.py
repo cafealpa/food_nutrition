@@ -15,6 +15,7 @@ import numpy as np
 from typing import List, Dict, Tuple
 import time
 import json
+import random
 
 
 def read_properties(prop_file: str) -> Dict[str, Tuple[int, int, int, int]]:
@@ -125,7 +126,9 @@ def train_files_pre_process(target_dir, dest_dir, count):
                  and f != 'crop_area.properties']
 
         if count > 0:
-            files = files[:count]
+            # Set random seed based on current time
+            random.seed(int(time.time()))
+            files = random.sample(files, min(count, len(files)))
 
         for file in files:
             src_path = os.path.join(dir_path, file)
@@ -171,16 +174,19 @@ def train_files_pre_process(target_dir, dest_dir, count):
 
 
 if __name__ == '__main__':
-    target_dir = "/Users/james/Desktop/dataset/21_korean/kfood_correct"
-    dest_dir = "/Users/james/Desktop/dataset/21_korean/kfood_correct_test"
-    count = 30
+    target_dir = "E:\\AIWork\\Data\\한국음식"
+    dest_dir = "E:\\AIWork\\Data\\테스트"
+    count = 20
 
     process_result = train_files_pre_process(target_dir, dest_dir, count)
 
-    # Save process_result to JSON file
-    result_file = os.path.join(dest_dir, 'result.json')
-    with open(result_file, 'w', encoding='utf-8') as f:
-        json.dump(process_result, f, ensure_ascii=False, indent=2)
+        # Save process_result to JSON file
+        result_file = os.path.join(dest_dir, 'result.json')
+        with open(result_file, 'w', encoding='utf-8') as f:
+            json.dump(process_result, f, ensure_ascii=False, indent=2)
+
+        print(f"파일 생성 완료: {dest_dir}")
+
 
     print()
 <<<<<<< HEAD
