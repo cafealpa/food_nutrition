@@ -1,6 +1,6 @@
 import sqlite3
 
-DB_PATH = '../../food_nutrition.db'
+DB_PATH = '/Users/james/Documents/Projects/products/ai_groom_lecture/projects/food_nutrition/food_nutrition.db'
 
 def get_food_nutrition_data(limit=10):
     """

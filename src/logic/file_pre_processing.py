@@ -11,8 +11,10 @@
 import os
 import shutil
 import cv2
+import numpy as np
 from typing import List, Dict, Tuple
 import time
+import json
 
 
 def read_properties(prop_file: str) -> Dict[str, Tuple[int, int, int, int]]:
@@ -68,7 +70,7 @@ def get_lowest_dirs(target_dir: str) -> List[str]:
 
 def crop_image(image_path: str, coords: Tuple[int, int, int, int]) -> any:
     """
-    주어진 좌표에 따라 이미지를 자릅니다.
+    주어진 좌표에 따라 이미지를 자릅니다. 한글 경로 문제를 해결하기 위해 numpy로 파일을 읽습니다.
 
     Args:
         image_path (str): 이미지 파일 경로
@@ -77,11 +79,16 @@ def crop_image(image_path: str, coords: Tuple[int, int, int, int]) -> any:
     Returns:
         any: 잘린 이미지 객체 (OpenCV 이미지). 실패 시 None을 반환합니다.
     """
-    print(f"path : {image_path} | coords : {coords}")
-    img = cv2.imread(image_path)
-    if img is None:
-        print(f"Error: 이미지 읽기 실패 {image_path}")
+    try:
+        with open(image_path, 'rb') as f:
+            img_array = np.frombuffer(f.read(), np.uint8)
+            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        if img is None:
+            raise IOError("Failed to decode image")
+    except Exception as e:
+        print(f"Error: 이미지 읽기 실패 {image_path} - {e}")
         return None
+    
     x, y, w, h = coords
     return img[y:y + h, x:x + w]
 
@@ -92,6 +99,7 @@ def train_files_pre_process(target_dir, dest_dir, count):
 
     'crop_area.properties' 파일이 있는 경우, 해당 파일의 좌표 정보를 이용해 이미지를 자른 후 복사합니다.
     파일이 없으면 원본 이미지를 그대로 복사합니다.
+    한글 경로 문제를 해결하기 위해 cv2.imencode를 사용하여 파일을 저장합니다.
 
     Args:
         target_dir (str): 원본 이미지 파일들이 있는 대상 디렉토리
@@ -99,15 +107,19 @@ def train_files_pre_process(target_dir, dest_dir, count):
         count (int): 각 하위 폴더에서 처리할 파일의 수. 0이면 모든 파일을 처리합니다.
 
     Returns:
-        dict: 처리된 파일명을 키로, 파일의 유형(폴더명)을 값으로 하는 딕셔너리
+        dict: 처리된 파일명을 키로, {'folder': 원본폴더명, 'type': 파일유형}을 값으로 하는 딕셔너리
     """
     os.makedirs(dest_dir, exist_ok=True)
     result = {}
 
     for dir_path in get_lowest_dirs(target_dir):
+        # Use only the last directory name for destination
+        folder_type = os.path.basename(dir_path)
+        current_dest_dir = os.path.join(dest_dir, folder_type)
+        os.makedirs(current_dest_dir, exist_ok=True)
+
         prop_file = os.path.join(dir_path, 'crop_area.properties')
         crop_areas = read_properties(prop_file)
-        folder_type = os.path.basename(dir_path)
 
         files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))
                  and f != 'crop_area.properties']
@@ -117,30 +129,35 @@ def train_files_pre_process(target_dir, dest_dir, count):
 
         for file in files:
             src_path = os.path.join(dir_path, file)
-            dest_path = os.path.join(dest_dir, file)
+            dest_path = os.path.join(current_dest_dir, file)
 
-            # 파일명이 중복되면 이름 변경
+            # 파일명이 중복되면 폴더명을 포함하여 이름 변경
             base, ext = os.path.splitext(file)
             counter = 1
             while os.path.exists(dest_path):
-                dest_path = os.path.join(dest_dir, f"{base}_{counter}{ext}")
+                dest_path = os.path.join(current_dest_dir, f"{base}_{folder_type}_{counter}{ext}")
                 counter += 1
 
             try:
-                file_name_only = file.split(".")[0]
+                file_name_only = os.path.splitext(file)[0]
                 if file_name_only in crop_areas:
                     cropped = crop_image(src_path, crop_areas[file_name_only])
                     if cropped is not None:
-                        cv2.imwrite(dest_path, cropped)
-                        result[file] = folder_type
+                        extension = os.path.splitext(dest_path)[1]
+                        result_encode, encoded_img = cv2.imencode(extension, cropped)
+                        if result_encode:
+                            with open(dest_path, 'wb') as f:
+                                f.write(encoded_img)
+                            result[file] = folder_type
+                        else:
+                            print(f"Warning: 이미지 인코딩 실패 {src_path}")
                     else:
                         print(f"Warning: 이미지 크롭 실패 {src_path}")
                 else:
-                    print(f"not copped file : {file_name_only}")
                     for attempt in range(3):
                         try:
                             shutil.copy2(src_path, dest_path)
-                            result[file] = folder_type
+                            result[file] = {'folder': dir_path, 'type': folder_type}
                             break
                         except PermissionError as e:
                             print(f"파일 사용 중, {file} - {e}, 재시도 {attempt + 1}/3")
@@ -156,7 +173,14 @@ def train_files_pre_process(target_dir, dest_dir, count):
 if __name__ == '__main__':
     target_dir = "/Users/james/Desktop/dataset/21_korean/kfood_correct"
     dest_dir = "/Users/james/Desktop/dataset/21_korean/kfood_correct_test"
-    count = 20
+    count = 30
 
-    train_files_pre_process(target_dir, dest_dir, count)
+    process_result = train_files_pre_process(target_dir, dest_dir, count)
+
+    # Save process_result to JSON file
+    result_file = os.path.join(dest_dir, 'result.json')
+    with open(result_file, 'w', encoding='utf-8') as f:
+        json.dump(process_result, f, ensure_ascii=False, indent=2)
+
+    print()
     print("종료")
