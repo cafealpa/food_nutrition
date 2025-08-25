@@ -107,15 +107,19 @@ def train_files_pre_process(target_dir, dest_dir, count):
         count (int): 각 하위 폴더에서 처리할 파일의 수. 0이면 모든 파일을 처리합니다.
 
     Returns:
-        dict: 처리된 파일명을 키로, 파일의 유형(폴더명)을 값으로 하는 딕셔너리
+        dict: 처리된 파일명을 키로, {'folder': 원본폴더명, 'type': 파일유형}을 값으로 하는 딕셔너리
     """
     os.makedirs(dest_dir, exist_ok=True)
     result = {}
 
     for dir_path in get_lowest_dirs(target_dir):
+        # Use only the last directory name for destination
+        folder_type = os.path.basename(dir_path)
+        current_dest_dir = os.path.join(dest_dir, folder_type)
+        os.makedirs(current_dest_dir, exist_ok=True)
+
         prop_file = os.path.join(dir_path, 'crop_area.properties')
         crop_areas = read_properties(prop_file)
-        folder_type = os.path.basename(dir_path)
 
         files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))
                  and f != 'crop_area.properties']
@@ -125,13 +129,13 @@ def train_files_pre_process(target_dir, dest_dir, count):
 
         for file in files:
             src_path = os.path.join(dir_path, file)
-            dest_path = os.path.join(dest_dir, file)
+            dest_path = os.path.join(current_dest_dir, file)
 
-            # 파일명이 중복되면 이름 변경
+            # 파일명이 중복되면 폴더명을 포함하여 이름 변경
             base, ext = os.path.splitext(file)
             counter = 1
             while os.path.exists(dest_path):
-                dest_path = os.path.join(dest_dir, f"{base}_{counter}{ext}")
+                dest_path = os.path.join(current_dest_dir, f"{base}_{folder_type}_{counter}{ext}")
                 counter += 1
 
             try:
@@ -153,7 +157,7 @@ def train_files_pre_process(target_dir, dest_dir, count):
                     for attempt in range(3):
                         try:
                             shutil.copy2(src_path, dest_path)
-                            result[file] = folder_type
+                            result[file] = {'folder': dir_path, 'type': folder_type}
                             break
                         except PermissionError as e:
                             print(f"파일 사용 중, {file} - {e}, 재시도 {attempt + 1}/3")
