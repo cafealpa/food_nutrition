@@ -18,23 +18,6 @@ def get_db_connection():
         if conn:
             conn.close()
 
-def get_food_nutrition_data(limit=10):
-    """
-    food_nutrition 테이블에서 데이터를 조회합니다.
-    :param limit: 조회할 데이터의 최대 개수
-    :return: 음식 영양 데이터 리스트
-    """
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            # SQL Injection 방지를 위해 파라미터 바인딩 사용
-            cursor.execute("SELECT * FROM food_nutrition LIMIT ?", (limit,))
-            rows = cursor.fetchall()
-            return [dict(row) for row in rows]
-    except sqlite3.Error as e:
-        print(f"데이터베이스 오류: {e}")
-        return []
-
 def get_food_info_by_name(food_name):
     """
     음식 이름으로 영양 정보를 조회합니다.
@@ -62,13 +45,8 @@ def get_food_info_by_name(food_name):
             cursor.execute(query, param)
 
             rows = cursor.fetchall()
+
             return [dict(row) for row in rows]
     except sqlite3.Error as e:
         print(f"데이터베이스 오류: {e}")
         return []
-
-if __name__ == '__main__':
-    food_data = get_food_nutrition_data(5)
-    if food_data:
-        for item in food_data:
-            print(item)
