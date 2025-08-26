@@ -1,7 +1,7 @@
 import streamlit as st
-from module.img import get_image_from_uploader
-from module.predict import predict
-from module.api import connection_api
+from service.img import get_image_from_uploader
+from service.predict import predict
+from service.api import connection_api
 from streamlit_star_rating import st_star_rating
 import pandas as pd
 
