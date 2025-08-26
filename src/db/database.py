@@ -47,8 +47,18 @@ def get_food_info_by_name(food_name):
 
             # SQL Injection을 방지하기 위해 파라미터화된 쿼리(placeholder '?')를 사용합니다.
             # 사용자 입력은 두 번째 인자로 안전하게 전달됩니다.
-            query = "SELECT * FROM FOOD_NUTRITION WHERE FOOD_NAME LIKE ?"
-            param = (f'%{food_name}%',)
+            query = """
+                    SELECT * 
+                    FROM FOOD_NUTRITION 
+                    WHERE REPLACE(FOOD_NAME, ' ', '') LIKE ?
+                    ORDER BY
+                        CASE
+                            WHEN REPLACE(FOOD_NAME, ' ', '') LIKE ? THEN 1
+                            WHEN REPLACE(FOOD_NAME, ' ', '') LIKE ? THEN 2
+                            ELSE 3
+                        END
+                    """
+            param = (f'%{food_name}%', f'{food_name}%', f'%{food_name}%')
             cursor.execute(query, param)
 
             rows = cursor.fetchall()
